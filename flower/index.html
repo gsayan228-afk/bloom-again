@@ -1,0 +1,2684 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Bloom Again 🌹</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #080812;
+            font-family: Georgia, "Times New Roman", serif;
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: pointer;
+        }
+
+        #message {
+            position: fixed;
+            top: 7%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(90%, 800px);
+
+            text-align: center;
+            color: #fff7fb;
+
+            font-size: clamp(20px, 3vw, 34px);
+            line-height: 1.5;
+
+            text-shadow:
+                0 2px 12px rgba(0, 0, 0, .7),
+                0 0 20px rgba(255, 120, 180, .35);
+
+            opacity: 0;
+
+            transition:
+                opacity 1.2s ease,
+                transform 1.2s ease;
+
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #message.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #controls {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+
+            display: flex;
+            gap: 10px;
+
+            z-index: 20;
+        }
+
+        button {
+            border: 1px solid rgba(255, 255, 255, .25);
+
+            background: rgba(30, 12, 25, .65);
+            backdrop-filter: blur(10px);
+
+            color: white;
+
+            padding: 11px 17px;
+
+            border-radius: 30px;
+
+            font-family: Georgia, serif;
+            font-size: 14px;
+
+            cursor: pointer;
+
+            transition:
+                transform .2s ease,
+                background .2s ease,
+                box-shadow .2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+
+            background: rgba(70, 20, 50, .8);
+
+            box-shadow:
+                0 5px 25px rgba(255, 100, 170, .25);
+        }
+
+        button:active {
+            transform: scale(.96);
+        }
+
+        @media(max-width:600px) {
+
+            #message {
+                top: 8%;
+                font-size: 20px;
+                width: 88%;
+            }
+
+            #controls {
+                right: 10px;
+                bottom: 10px;
+            }
+
+            button {
+                padding: 9px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="garden"></canvas>
+
+    <div id="message"></div>
+
+    <div id="controls">
+        <button id="musicButton">🔊 Music On</button>
+        <button id="restart">🌹 Bloom Again</button>
+    </div>
+
+    <audio id="bgMusic" loop preload="auto">
+        <source src="lover.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+
+        const canvas = document.getElementById("garden");
+        const ctx = canvas.getContext("2d");
+
+        const message = document.getElementById("message");
+        const restart = document.getElementById("restart");
+        const musicButton = document.getElementById("musicButton");
+        const bgMusic = document.getElementById("bgMusic");
+
+        bgMusic.volume = 0.35;
+
+
+        /* =========================================================
+           VARIABLES
+        ========================================================= */
+
+        let W = 0;
+        let H = 0;
+        let DPR = 1;
+
+        let roses = [];
+        let grass = [];
+        let flowers = [];
+        let petals = [];
+        let clickEffects = [];
+
+        let startTime = performance.now();
+        let lastTime = performance.now();
+
+        let messageIndex = 0;
+
+        let musicStarted = false;
+
+
+        /* =========================================================
+           MESSAGES
+        ========================================================= */
+
+        const messages = [
+
+            "Pink is the colour of love—",
+
+            "softness wrapped in desire.",
+
+            "But a pink rose is different;",
+
+            "it carries love gently,",
+
+            "without needing words.",
+
+            "And maybe that's what you are to me—",
+
+
+            "not just the feeling that makes me smile,",
+
+            "but the one I want beside me.",
+
+        ];
+
+
+        /* =========================================================
+           HELPERS
+        ========================================================= */
+
+        function rand(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function easeOut(t) {
+            return 1 - Math.pow(1 - t, 3);
+        }
+
+
+        /* =========================================================
+           RESIZE
+        ========================================================= */
+
+        function resize() {
+
+            DPR = Math.min(
+                window.devicePixelRatio || 1,
+                2
+            );
+
+            W = window.innerWidth;
+            H = window.innerHeight;
+
+            canvas.width =
+                Math.floor(W * DPR);
+
+            canvas.height =
+                Math.floor(H * DPR);
+
+            canvas.style.width =
+                W + "px";
+
+            canvas.style.height =
+                H + "px";
+
+            ctx.setTransform(
+                DPR,
+                0,
+                0,
+                DPR,
+                0,
+                0
+            );
+
+            makeGarden();
+        }
+
+        window.addEventListener(
+            "resize",
+            resize
+        );
+
+
+        /* =========================================================
+           GROUND
+        ========================================================= */
+
+        function groundY() {
+            return H * 0.72;
+        }
+
+
+        /* =========================================================
+           CREATE GARDEN
+        ========================================================= */
+
+        function makeGarden() {
+
+            roses = [];
+            grass = [];
+            flowers = [];
+            petals = [];
+            clickEffects = [];
+
+            const gy = groundY();
+
+
+            /* -----------------------------------------------------
+               FOREGROUND ROSES
+            ----------------------------------------------------- */
+
+            const foregroundCount =
+                Math.max(
+                    12,
+                    Math.floor(W / 80)
+                );
+
+            for (
+                let i = 0;
+                i < foregroundCount;
+                i++
+            ) {
+
+                roses.push({
+
+                    x: rand(
+                        -30,
+                        W + 30
+                    ),
+
+                    y: gy + rand(
+                        5,
+                        100
+                    ),
+
+                    /* Larger roses */
+                    size: rand(
+                        34,
+                        52
+                    ),
+
+                    delay: rand(
+                        500,
+                        6500
+                    ),
+
+                    layer: 2,
+
+                    bloom: rand(
+                        .90,
+                        1.12
+                    ),
+
+                    sway: rand(
+                        0,
+                        Math.PI * 2
+                    ),
+
+                    rotation: rand(
+                        -.15,
+                        .15
+                    )
+
+                });
+            }
+
+
+            /* -----------------------------------------------------
+               DISTANT ROSES
+            ----------------------------------------------------- */
+
+            const distantCount =
+                Math.max(
+                    14,
+                    Math.floor(W / 65)
+                );
+
+            for (
+                let i = 0;
+                i < distantCount;
+                i++
+            ) {
+
+                roses.push({
+
+                    x: rand(
+                        -20,
+                        W + 20
+                    ),
+
+                    y: gy - rand(
+                        15,
+                        80
+                    ),
+
+                    size: rand(
+                        21,
+                        33
+                    ),
+
+                    delay: rand(
+                        500,
+                        7500
+                    ),
+
+                    layer: 1,
+
+                    bloom: rand(
+                        .85,
+                        1.05
+                    ),
+
+                    sway: rand(
+                        0,
+                        Math.PI * 2
+                    ),
+
+                    rotation: rand(
+                        -.12,
+                        .12
+                    )
+
+                });
+            }
+
+
+            /* -----------------------------------------------------
+               GRASS
+            ----------------------------------------------------- */
+
+            const grassCount =
+                Math.floor(W * .55);
+
+            for (
+                let i = 0;
+                i < grassCount;
+                i++
+            ) {
+
+                grass.push({
+
+                    x: rand(
+                        0,
+                        W
+                    ),
+
+                    y: gy + rand(
+                        0,
+                        H * .30
+                    ),
+
+                    height: rand(
+                        8,
+                        30
+                    ),
+
+                    lean: rand(
+                        -7,
+                        7
+                    ),
+
+                    phase: rand(
+                        0,
+                        Math.PI * 2
+                    )
+
+                });
+            }
+
+
+            /* -----------------------------------------------------
+               WILDFLOWERS
+            ----------------------------------------------------- */
+
+            const flowerCount =
+                Math.floor(W / 15);
+
+            for (
+                let i = 0;
+                i < flowerCount;
+                i++
+            ) {
+
+                flowers.push({
+
+                    x: rand(
+                        0,
+                        W
+                    ),
+
+                    y: gy + rand(
+                        20,
+                        H * .25
+                    ),
+
+                    size: rand(
+                        1.5,
+                        4
+                    ),
+
+                    type: Math.floor(
+                        rand(0, 3)
+                    ),
+
+                    phase: rand(
+                        0,
+                        Math.PI * 2
+                    )
+
+                });
+            }
+        }
+
+
+        /* =========================================================
+           SKY
+        ========================================================= */
+
+        function drawSky() {
+
+            const gradient =
+                ctx.createLinearGradient(
+                    0,
+                    0,
+                    0,
+                    H
+                );
+
+            gradient.addColorStop(
+                0,
+                "#09091a"
+            );
+
+            gradient.addColorStop(
+                .42,
+                "#16152e"
+            );
+
+            gradient.addColorStop(
+                .72,
+                "#30213a"
+            );
+
+            gradient.addColorStop(
+                1,
+                "#513044"
+            );
+
+            ctx.fillStyle =
+                gradient;
+
+            ctx.fillRect(
+                0,
+                0,
+                W,
+                H
+            );
+
+
+            /* Moon */
+
+            const moonX =
+                W * .78;
+
+            const moonY =
+                H * .18;
+
+            const moonR =
+                Math.min(W, H) * .055;
+
+
+            const moonGlow =
+                ctx.createRadialGradient(
+                    moonX,
+                    moonY,
+                    moonR * .3,
+                    moonX,
+                    moonY,
+                    moonR * 3
+                );
+
+            moonGlow.addColorStop(
+                0,
+                "rgba(255,245,220,.20)"
+            );
+
+            moonGlow.addColorStop(
+                1,
+                "rgba(255,245,220,0)"
+            );
+
+            ctx.fillStyle =
+                moonGlow;
+
+            ctx.beginPath();
+
+            ctx.arc(
+                moonX,
+                moonY,
+                moonR * 3,
+                0,
+                Math.PI * 2
+            );
+
+            ctx.fill();
+
+
+            ctx.fillStyle =
+                "#fff4d7";
+
+            ctx.beginPath();
+
+            ctx.arc(
+                moonX,
+                moonY,
+                moonR,
+                0,
+                Math.PI * 2
+            );
+
+            ctx.fill();
+        }
+
+
+        /* =========================================================
+           STATIC STARS
+        ========================================================= */
+
+        const stars = [];
+
+        for (
+            let i = 0;
+            i < 130;
+            i++
+        ) {
+
+            stars.push({
+
+                x: Math.random(),
+
+                y: Math.random() * .55,
+
+                r: rand(
+                    .3,
+                    1.5
+                ),
+
+                alpha: rand(
+                    .35,
+                    .9
+                )
+
+            });
+        }
+
+
+        function drawStars() {
+
+            for (
+                const star of stars
+            ) {
+
+                ctx.globalAlpha =
+                    star.alpha;
+
+                ctx.fillStyle =
+                    "#ffffff";
+
+                ctx.beginPath();
+
+                ctx.arc(
+                    star.x * W,
+                    star.y * H,
+                    star.r,
+                    0,
+                    Math.PI * 2
+                );
+
+                ctx.fill();
+            }
+
+            ctx.globalAlpha = 1;
+        }
+
+
+        /* =========================================================
+           BACKGROUND
+        ========================================================= */
+
+        function drawBackground() {
+
+            /* Far hill */
+
+            ctx.fillStyle =
+                "#171528";
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                0,
+                H * .58
+            );
+
+            ctx.bezierCurveTo(
+                W * .15,
+                H * .48,
+                W * .30,
+                H * .55,
+                W * .46,
+                H * .50
+            );
+
+            ctx.bezierCurveTo(
+                W * .63,
+                H * .44,
+                W * .77,
+                H * .57,
+                W,
+                H * .47
+            );
+
+            ctx.lineTo(
+                W,
+                H
+            );
+
+            ctx.lineTo(
+                0,
+                H
+            );
+
+            ctx.closePath();
+
+            ctx.fill();
+
+
+            /* Near hill */
+
+            ctx.fillStyle =
+                "#202034";
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                0,
+                H * .64
+            );
+
+            ctx.bezierCurveTo(
+                W * .18,
+                H * .54,
+                W * .30,
+                H * .62,
+                W * .48,
+                H * .57
+            );
+
+            ctx.bezierCurveTo(
+                W * .67,
+                H * .52,
+                W * .80,
+                H * .64,
+                W,
+                H * .55
+            );
+
+            ctx.lineTo(
+                W,
+                H
+            );
+
+            ctx.lineTo(
+                0,
+                H
+            );
+
+            ctx.closePath();
+
+            ctx.fill();
+
+
+            /* Hedge */
+
+            const hedgeY =
+                H * .65;
+
+            ctx.fillStyle =
+                "#18231f";
+
+            ctx.fillRect(
+                0,
+                hedgeY,
+                W,
+                H * .15
+            );
+
+            for (
+                let x = -10;
+                x < W + 20;
+                x += 18
+            ) {
+
+                ctx.beginPath();
+
+                ctx.arc(
+                    x,
+                    hedgeY,
+                    16,
+                    0,
+                    Math.PI * 2
+                );
+
+                ctx.fill();
+            }
+        }
+
+
+        /* =========================================================
+           GROUND
+        ========================================================= */
+
+        function drawGround() {
+
+            const gy =
+                groundY();
+
+            const gradient =
+                ctx.createLinearGradient(
+                    0,
+                    gy,
+                    0,
+                    H
+                );
+
+            gradient.addColorStop(
+                0,
+                "#26382c"
+            );
+
+            gradient.addColorStop(
+                .45,
+                "#1c3025"
+            );
+
+            gradient.addColorStop(
+                1,
+                "#101d17"
+            );
+
+            ctx.fillStyle =
+                gradient;
+
+            ctx.fillRect(
+                0,
+                gy,
+                W,
+                H - gy
+            );
+
+
+            /* Grass */
+
+            ctx.lineWidth = 1;
+
+            for (
+                const blade of grass
+            ) {
+
+                ctx.strokeStyle =
+                    "rgba(85,120,80,.65)";
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    blade.x,
+                    blade.y
+                );
+
+                ctx.quadraticCurveTo(
+                    blade.x + blade.lean,
+                    blade.y -
+                    blade.height * .55,
+                    blade.x +
+                    blade.lean * 1.5,
+                    blade.y -
+                    blade.height
+                );
+
+                ctx.stroke();
+            }
+
+
+            /* Wildflowers */
+
+            for (
+                const flower of flowers
+            ) {
+
+                let petalColor;
+
+                if (
+                    flower.type === 0
+                ) {
+                    petalColor =
+                        "#f5d7e7";
+                }
+                else if (
+                    flower.type === 1
+                ) {
+                    petalColor =
+                        "#e9d8ff";
+                }
+                else {
+                    petalColor =
+                        "#f6d6a7";
+                }
+
+                ctx.save();
+
+                ctx.translate(
+                    flower.x,
+                    flower.y
+                );
+
+                ctx.rotate(
+                    Math.sin(
+                        flower.phase
+                    ) * .08
+                );
+
+                ctx.fillStyle =
+                    petalColor;
+
+                for (
+                    let p = 0;
+                    p < 5;
+                    p++
+                ) {
+
+                    ctx.save();
+
+                    ctx.rotate(
+                        p *
+                        Math.PI *
+                        2 / 5
+                    );
+
+                    ctx.beginPath();
+
+                    ctx.ellipse(
+                        0,
+                        -flower.size,
+                        flower.size * .55,
+                        flower.size,
+                        0,
+                        0,
+                        Math.PI * 2
+                    );
+
+                    ctx.fill();
+
+                    ctx.restore();
+                }
+
+                ctx.fillStyle =
+                    "#f6d86b";
+
+                ctx.beginPath();
+
+                ctx.arc(
+                    0,
+                    0,
+                    flower.size * .38,
+                    0,
+                    Math.PI * 2
+                );
+
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+
+        /* =========================================================
+           LANTERNS
+        ========================================================= */
+
+        function drawLantern(
+            x,
+            y,
+            scale = 1
+        ) {
+
+            ctx.save();
+
+            ctx.translate(
+                x,
+                y
+            );
+
+            ctx.scale(
+                scale,
+                scale
+            );
+
+
+            /* Pole */
+
+            ctx.strokeStyle =
+                "#29242a";
+
+            ctx.lineWidth = 5;
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                0,
+                0
+            );
+
+            ctx.lineTo(
+                0,
+                -130
+            );
+
+            ctx.stroke();
+
+
+            /* Arm */
+
+            ctx.lineWidth = 4;
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                -22,
+                -130
+            );
+
+            ctx.lineTo(
+                22,
+                -130
+            );
+
+            ctx.stroke();
+
+
+            /* Roof */
+
+            ctx.fillStyle =
+                "#29242a";
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                -20,
+                -130
+            );
+
+            ctx.lineTo(
+                0,
+                -148
+            );
+
+            ctx.lineTo(
+                20,
+                -130
+            );
+
+            ctx.closePath();
+
+            ctx.fill();
+
+
+            /* Glow */
+
+            const glow =
+                ctx.createRadialGradient(
+                    0,
+                    -115,
+                    2,
+                    0,
+                    -115,
+                    55
+                );
+
+            glow.addColorStop(
+                0,
+                "rgba(255,200,110,.35)"
+            );
+
+            glow.addColorStop(
+                1,
+                "rgba(255,200,110,0)"
+            );
+
+            ctx.fillStyle =
+                glow;
+
+            ctx.beginPath();
+
+            ctx.arc(
+                0,
+                -115,
+                55,
+                0,
+                Math.PI * 2
+            );
+
+            ctx.fill();
+
+
+            /* Lantern body */
+
+            ctx.fillStyle =
+                "#3a3234";
+
+            ctx.fillRect(
+                -14,
+                -128,
+                28,
+                28
+            );
+
+            ctx.fillStyle =
+                "#ffd98a";
+
+            ctx.fillRect(
+                -9,
+                -123,
+                18,
+                18
+            );
+
+
+            /* Base */
+
+            ctx.fillStyle =
+                "#29242a";
+
+            ctx.fillRect(
+                -8,
+                -5,
+                16,
+                5
+            );
+
+            ctx.restore();
+        }
+
+
+        function drawLanterns() {
+
+            drawLantern(
+                W * .12,
+                groundY() + 10,
+                .9
+            );
+
+            drawLantern(
+                W * .88,
+                groundY() + 5,
+                .85
+            );
+        }
+
+
+        /* =========================================================
+           REALISTIC LEAF
+        ========================================================= */
+
+        function drawRealisticLeaf(
+            x,
+            y,
+            angle,
+            length,
+            width
+        ) {
+
+            ctx.save();
+
+            ctx.translate(
+                x,
+                y
+            );
+
+            ctx.rotate(
+                angle
+            );
+
+
+            const gradient =
+                ctx.createLinearGradient(
+                    0,
+                    -width,
+                    0,
+                    width
+                );
+
+            gradient.addColorStop(
+                0,
+                "#567d45"
+            );
+
+            gradient.addColorStop(
+                .5,
+                "#315b36"
+            );
+
+            gradient.addColorStop(
+                1,
+                "#183b29"
+            );
+
+            ctx.fillStyle =
+                gradient;
+
+
+            /* Leaf shape */
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                0,
+                0
+            );
+
+            ctx.bezierCurveTo(
+                length * .25,
+                -width,
+                length * .75,
+                -width * 1.05,
+                length,
+                0
+            );
+
+            ctx.bezierCurveTo(
+                length * .75,
+                width * 1.05,
+                length * .25,
+                width,
+                0,
+                0
+            );
+
+            ctx.closePath();
+
+            ctx.fill();
+
+
+            /* Central vein */
+
+            ctx.strokeStyle =
+                "rgba(160,190,120,.65)";
+
+            ctx.lineWidth = .8;
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                0,
+                0
+            );
+
+            ctx.lineTo(
+                length,
+                0
+            );
+
+            ctx.stroke();
+
+
+            /* Side veins */
+
+            ctx.strokeStyle =
+                "rgba(170,190,130,.32)";
+
+            ctx.lineWidth = .5;
+
+            for (
+                let i = .25;
+                i < .9;
+                i += .18
+            ) {
+
+                const px =
+                    length * i;
+
+                const spread =
+                    width *
+                    Math.sin(
+                        i * Math.PI
+                    );
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    px,
+                    0
+                );
+
+                ctx.lineTo(
+                    px - length * .13,
+                    -spread
+                );
+
+                ctx.stroke();
+
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    px,
+                    0
+                );
+
+                ctx.lineTo(
+                    px - length * .13,
+                    spread
+                );
+
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+
+        /* =========================================================
+           ROSE LEAVES
+        ========================================================= */
+
+        function drawLeaves(
+            rose,
+            x,
+            y
+        ) {
+
+            drawRealisticLeaf(
+                x - 3,
+                y + 28,
+                -.65,
+                rose.size * .72,
+                rose.size * .18
+            );
+
+            drawRealisticLeaf(
+                x + 3,
+                y + 42,
+                .62,
+                rose.size * .62,
+                rose.size * .17
+            );
+        }
+
+
+        /* =========================================================
+           REALISTIC PINK ROSE
+        ========================================================= */
+
+        function drawRose(
+            rose,
+            bloom,
+            time
+        ) {
+
+            const s =
+                rose.size *
+                1.22 *
+                bloom;
+
+
+            /* Very subtle movement */
+
+            const sway =
+                Math.sin(
+                    time * .00045 +
+                    rose.sway
+                ) * 1.2;
+
+
+            const baseX =
+                rose.x + sway;
+
+            const baseY =
+                rose.y;
+
+
+            const stemHeight =
+                s * 2.25;
+
+            const topX =
+                baseX;
+
+            const topY =
+                baseY -
+                stemHeight;
+
+
+            ctx.save();
+
+
+            /* =====================================================
+               STEM
+            ===================================================== */
+
+            ctx.strokeStyle =
+                "#285534";
+
+            ctx.lineWidth =
+                Math.max(
+                    2,
+                    s * .075
+                );
+
+            ctx.lineCap =
+                "round";
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                baseX,
+                baseY + s * .20
+            );
+
+            ctx.bezierCurveTo(
+                baseX - s * .12,
+                baseY - stemHeight * .35,
+                topX + sway * .5,
+                baseY - stemHeight * .72,
+                topX,
+                topY + s * .1
+            );
+
+            ctx.stroke();
+
+
+            /* Stem highlight */
+
+            ctx.strokeStyle =
+                "rgba(100,150,80,.35)";
+
+            ctx.lineWidth =
+                Math.max(
+                    .7,
+                    s * .025
+                );
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                baseX - 1,
+                baseY
+            );
+
+            ctx.bezierCurveTo(
+                baseX - s * .05,
+                baseY - stemHeight * .4,
+                topX,
+                baseY - stemHeight * .72,
+                topX,
+                topY + s * .1
+            );
+
+            ctx.stroke();
+
+
+            /* Leaves */
+
+            drawLeaves(
+                rose,
+                topX,
+                topY
+            );
+
+
+            /* =====================================================
+               FLOWER
+            ===================================================== */
+
+            ctx.translate(
+                topX,
+                topY
+            );
+
+            ctx.rotate(
+                rose.rotation +
+                Math.sin(
+                    time * .00045 +
+                    rose.sway
+                ) * .008
+            );
+
+
+            /* =====================================================
+               GREEN SEPALS
+            ===================================================== */
+
+            for (
+                let i = 0;
+                i < 5;
+                i++
+            ) {
+
+                const angle =
+                    i *
+                    Math.PI *
+                    2 / 5;
+
+                ctx.save();
+
+                ctx.rotate(
+                    angle
+                );
+
+                ctx.fillStyle =
+                    "#245333";
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    0,
+                    s * .15
+                );
+
+                ctx.quadraticCurveTo(
+                    -s * .10,
+                    s * .40,
+                    0,
+                    s * .62
+                );
+
+                ctx.quadraticCurveTo(
+                    s * .10,
+                    s * .40,
+                    0,
+                    s * .15
+                );
+
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+
+            /* =====================================================
+               OUTER PINK PETALS
+            ===================================================== */
+
+            const outerPetals = 13;
+
+            for (
+                let i = 0;
+                i < outerPetals;
+                i++
+            ) {
+
+                const angle =
+                    i *
+                    Math.PI *
+                    2 /
+                    outerPetals;
+
+                const petalScale =
+                    .92 +
+                    Math.sin(
+                        i * 2.3
+                    ) * .08;
+
+
+                ctx.save();
+
+                ctx.rotate(
+                    angle
+                );
+
+
+                /* PINK GRADIENT */
+
+                const gradient =
+                    ctx.createLinearGradient(
+                        0,
+                        -s * .65,
+                        0,
+                        s * .38
+                    );
+
+                gradient.addColorStop(
+                    0,
+                    "#ffd1e2"
+                );
+
+                gradient.addColorStop(
+                    .45,
+                    "#f58aad"
+                );
+
+                gradient.addColorStop(
+                    1,
+                    "#e85d88"
+                );
+
+                ctx.fillStyle =
+                    gradient;
+
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    0,
+                    0
+                );
+
+                ctx.bezierCurveTo(
+                    -s * .48 * petalScale,
+                    -s * .20,
+                    -s * .58 * petalScale,
+                    -s * .70,
+                    0,
+                    -s * .88 * petalScale
+                );
+
+                ctx.bezierCurveTo(
+                    s * .58 * petalScale,
+                    -s * .70,
+                    s * .48 * petalScale,
+                    -s * .20,
+                    0,
+                    0
+                );
+
+                ctx.closePath();
+
+                ctx.fill();
+
+
+                /* Petal edge */
+
+                ctx.strokeStyle =
+                    "rgba(255,225,238,.35)";
+
+                ctx.lineWidth =
+                    Math.max(
+                        .7,
+                        s * .015
+                    );
+
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+
+            /* =====================================================
+               SECOND PINK PETAL LAYER
+            ===================================================== */
+
+            const middlePetals = 11;
+
+            for (
+                let i = 0;
+                i < middlePetals;
+                i++
+            ) {
+
+                const angle =
+                    i *
+                    Math.PI *
+                    2 /
+                    middlePetals +
+                    .12;
+
+
+                ctx.save();
+
+                ctx.rotate(
+                    angle
+                );
+
+
+                const gradient =
+                    ctx.createLinearGradient(
+                        0,
+                        -s * .48,
+                        0,
+                        s * .25
+                    );
+
+                gradient.addColorStop(
+                    0,
+                    "#ffc4da"
+                );
+
+                gradient.addColorStop(
+                    .5,
+                    "#f276a0"
+                );
+
+                gradient.addColorStop(
+                    1,
+                    "#d94f7d"
+                );
+
+                ctx.fillStyle =
+                    gradient;
+
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    0,
+                    s * .05
+                );
+
+                ctx.bezierCurveTo(
+                    -s * .36,
+                    -s * .10,
+                    -s * .43,
+                    -s * .54,
+                    0,
+                    -s * .66
+                );
+
+                ctx.bezierCurveTo(
+                    s * .43,
+                    -s * .54,
+                    s * .36,
+                    -s * .10,
+                    0,
+                    s * .05
+                );
+
+                ctx.closePath();
+
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+
+            /* =====================================================
+               INNER PINK CURLING PETALS
+            ===================================================== */
+
+            const innerPetals = 8;
+
+            const innerColors = [
+                "#f06b98",
+                "#e95c8b",
+                "#f47aa5",
+                "#d94f7d",
+                "#ee709d"
+            ];
+
+            for (
+                let i = 0;
+                i < innerPetals;
+                i++
+            ) {
+
+                const angle =
+                    i *
+                    Math.PI *
+                    2 /
+                    innerPetals +
+                    .25;
+
+                const radius =
+                    s * .18 +
+                    (i % 2) *
+                    s * .025;
+
+
+                ctx.save();
+
+                ctx.rotate(
+                    angle
+                );
+
+                ctx.fillStyle =
+                    innerColors[
+                    i %
+                    innerColors.length
+                    ];
+
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    0,
+                    0
+                );
+
+                ctx.bezierCurveTo(
+                    -s * .25,
+                    -s * .02,
+                    -s * .26,
+                    -s * .31,
+                    radius * .15,
+                    -s * .39
+                );
+
+                ctx.bezierCurveTo(
+                    s * .26,
+                    -s * .30,
+                    s * .25,
+                    -s * .04,
+                    0,
+                    0
+                );
+
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+
+            /* =====================================================
+               CENTER
+            ===================================================== */
+
+            const centerGradient =
+                ctx.createRadialGradient(
+                    0,
+                    -s * .06,
+                    0,
+                    0,
+                    -s * .06,
+                    s * .20
+                );
+
+            centerGradient.addColorStop(
+                0,
+                "#ffdce9"
+            );
+
+            centerGradient.addColorStop(
+                .45,
+                "#ee729e"
+            );
+
+            centerGradient.addColorStop(
+                1,
+                "#c94272"
+            );
+
+            ctx.fillStyle =
+                centerGradient;
+
+            ctx.beginPath();
+
+            ctx.arc(
+                0,
+                -s * .06,
+                s * .17,
+                0,
+                Math.PI * 2
+            );
+
+            ctx.fill();
+
+
+            /* Inner curl */
+
+            ctx.strokeStyle =
+                "rgba(255,220,235,.85)";
+
+            ctx.lineWidth =
+                Math.max(
+                    1,
+                    s * .025
+                );
+
+            ctx.beginPath();
+
+            ctx.arc(
+                0,
+                -s * .06,
+                s * .09,
+                .2,
+                Math.PI * 1.65
+            );
+
+            ctx.stroke();
+
+
+            /* =====================================================
+               SOFT PINK HIGHLIGHT
+            ===================================================== */
+
+            const highlight =
+                ctx.createRadialGradient(
+                    -s * .18,
+                    -s * .32,
+                    0,
+                    -s * .18,
+                    -s * .32,
+                    s * .65
+                );
+
+            highlight.addColorStop(
+                0,
+                "rgba(255,255,255,.22)"
+            );
+
+            highlight.addColorStop(
+                1,
+                "rgba(255,255,255,0)"
+            );
+
+            ctx.fillStyle =
+                highlight;
+
+            ctx.beginPath();
+
+            ctx.arc(
+                -s * .18,
+                -s * .32,
+                s * .65,
+                0,
+                Math.PI * 2
+            );
+
+            ctx.fill();
+
+
+            /* =====================================================
+               PETAL DETAILS
+            ===================================================== */
+
+            ctx.strokeStyle =
+                "rgba(255,225,238,.25)";
+
+            ctx.lineWidth =
+                Math.max(
+                    .5,
+                    s * .012
+                );
+
+            for (
+                let i = 0;
+                i < 5;
+                i++
+            ) {
+
+                const angle =
+                    i *
+                    Math.PI *
+                    2 / 5;
+
+                ctx.save();
+
+                ctx.rotate(
+                    angle
+                );
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    0,
+                    -s * .12
+                );
+
+                ctx.quadraticCurveTo(
+                    s * .14,
+                    -s * .30,
+                    s * .23,
+                    -s * .38
+                );
+
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
+
+
+        /* =========================================================
+           FALLING PETALS
+        ========================================================= */
+
+        function spawnPetal() {
+
+            petals.push({
+
+                x: rand(
+                    0,
+                    W
+                ),
+
+                y: rand(
+                    -30,
+                    H * .55
+                ),
+
+                size: rand(
+                    4,
+                    8
+                ),
+
+                speed: rand(
+                    12,
+                    30
+                ),
+
+                drift: rand(
+                    -12,
+                    12
+                ),
+
+                rotation: rand(
+                    0,
+                    Math.PI * 2
+                ),
+
+                rotationSpeed: rand(
+                    -1.5,
+                    1.5
+                ),
+
+                alpha: rand(
+                    .35,
+                    .8
+                )
+
+            });
+        }
+
+
+        function updatePetals(dt) {
+
+            for (
+                let i = petals.length - 1;
+                i >= 0;
+                i--
+            ) {
+
+                const p =
+                    petals[i];
+
+                p.y +=
+                    p.speed * dt;
+
+                p.x +=
+                    Math.sin(
+                        p.y * .015
+                    ) *
+                    p.drift *
+                    dt;
+
+                p.rotation +=
+                    p.rotationSpeed *
+                    dt;
+
+
+                if (
+                    p.y >
+                    H + 30
+                ) {
+
+                    petals.splice(
+                        i,
+                        1
+                    );
+                }
+            }
+
+
+            if (
+                Math.random() <
+                dt * .65
+            ) {
+
+                spawnPetal();
+            }
+        }
+
+
+        function drawPetals() {
+
+            for (
+                const p of petals
+            ) {
+
+                ctx.save();
+
+                ctx.translate(
+                    p.x,
+                    p.y
+                );
+
+                ctx.rotate(
+                    p.rotation
+                );
+
+                ctx.globalAlpha =
+                    p.alpha;
+
+
+                const gradient =
+                    ctx.createLinearGradient(
+                        0,
+                        -p.size,
+                        0,
+                        p.size
+                    );
+
+                gradient.addColorStop(
+                    0,
+                    "#ffd4e5"
+                );
+
+                gradient.addColorStop(
+                    1,
+                    "#d85d88"
+                );
+
+                ctx.fillStyle =
+                    gradient;
+
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    0,
+                    -p.size
+                );
+
+                ctx.bezierCurveTo(
+                    p.size,
+                    -p.size * .5,
+                    p.size,
+                    p.size * .6,
+                    0,
+                    p.size
+                );
+
+                ctx.bezierCurveTo(
+                    -p.size,
+                    p.size * .6,
+                    -p.size,
+                    -p.size * .5,
+                    0,
+                    -p.size
+                );
+
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            ctx.globalAlpha = 1;
+        }
+
+
+        /* =========================================================
+           CLICK EFFECT
+        ========================================================= */
+
+        function createClickEffect(
+            x,
+            y
+        ) {
+
+            const effect = {
+
+                x: x,
+
+                y: y,
+
+                life: 0,
+
+                maxLife: 1,
+
+                rings: 3,
+
+                petals: []
+
+            };
+
+
+            for (
+                let i = 0;
+                i < 12;
+                i++
+            ) {
+
+                effect.petals.push({
+
+                    angle:
+                        Math.random() *
+                        Math.PI * 2,
+
+                    distance: 0,
+
+                    speed: rand(
+                        50,
+                        120
+                    ),
+
+                    size: rand(
+                        3,
+                        7
+                    )
+
+                });
+            }
+
+
+            clickEffects.push(
+                effect
+            );
+        }
+
+
+        function updateClickEffects(dt) {
+
+            for (
+                let i = clickEffects.length - 1;
+                i >= 0;
+                i--
+            ) {
+
+                const effect =
+                    clickEffects[i];
+
+                effect.life += dt;
+
+
+                for (
+                    const p of effect.petals
+                ) {
+
+                    p.distance +=
+                        p.speed * dt;
+                }
+
+
+                if (
+                    effect.life >
+                    effect.maxLife
+                ) {
+
+                    clickEffects.splice(
+                        i,
+                        1
+                    );
+                }
+            }
+        }
+
+
+        function drawClickEffects() {
+
+            for (
+                const effect of clickEffects
+            ) {
+
+                const progress =
+                    effect.life /
+                    effect.maxLife;
+
+                const alpha =
+                    1 - progress;
+
+
+                ctx.save();
+
+                ctx.globalAlpha =
+                    alpha;
+
+
+                /* Rings */
+
+                for (
+                    let r = 0;
+                    r < effect.rings;
+                    r++
+                ) {
+
+                    const radius =
+                        progress * 100 +
+                        r * 18;
+
+                    ctx.strokeStyle =
+                        "rgba(255,140,190,.7)";
+
+                    ctx.lineWidth = 2;
+
+                    ctx.beginPath();
+
+                    ctx.arc(
+                        effect.x,
+                        effect.y,
+                        radius,
+                        0,
+                        Math.PI * 2
+                    );
+
+                    ctx.stroke();
+                }
+
+
+                /* Pink petals */
+
+                for (
+                    const p of effect.petals
+                ) {
+
+                    const x =
+                        effect.x +
+                        Math.cos(
+                            p.angle
+                        ) *
+                        p.distance;
+
+                    const y =
+                        effect.y +
+                        Math.sin(
+                            p.angle
+                        ) *
+                        p.distance;
+
+
+                    ctx.save();
+
+                    ctx.translate(
+                        x,
+                        y
+                    );
+
+                    ctx.rotate(
+                        p.angle
+                    );
+
+                    ctx.fillStyle =
+                        "#ff9fc5";
+
+                    ctx.beginPath();
+
+                    ctx.ellipse(
+                        0,
+                        0,
+                        p.size,
+                        p.size * .55,
+                        0,
+                        0,
+                        Math.PI * 2
+                    );
+
+                    ctx.fill();
+
+                    ctx.restore();
+                }
+
+                ctx.restore();
+            }
+
+            ctx.globalAlpha = 1;
+        }
+
+
+        /* =========================================================
+           MUSIC
+        ========================================================= */
+
+        async function startMusic() {
+
+            if (
+                musicStarted
+            ) {
+                return;
+            }
+
+            try {
+
+                await bgMusic.play();
+
+                musicStarted = true;
+
+                musicButton.textContent =
+                    "🔊 Music On";
+
+            }
+            catch (error) {
+
+                console.log(
+                    "Music could not start yet:",
+                    error
+                );
+            }
+        }
+
+
+        musicButton.addEventListener(
+            "click",
+            async function () {
+
+                if (
+                    bgMusic.paused
+                ) {
+
+                    try {
+
+                        await bgMusic.play();
+
+                        musicStarted =
+                            true;
+
+                        musicButton.textContent =
+                            "🔊 Music On";
+
+                    }
+                    catch (error) {
+
+                        console.log(
+                            error
+                        );
+                    }
+
+                }
+                else {
+
+                    bgMusic.pause();
+
+                    musicButton.textContent =
+                        "🔇 Music Off";
+                }
+            }
+        );
+
+
+        /* =========================================================
+           CANVAS CLICK
+        ========================================================= */
+
+        canvas.addEventListener(
+            "pointerdown",
+            function (event) {
+
+                startMusic();
+
+                createClickEffect(
+                    event.clientX,
+                    event.clientY
+                );
+            }
+        );
+
+
+        /* =========================================================
+           MESSAGES
+        ========================================================= */
+
+        function showMessage(
+            text
+        ) {
+
+            message.classList.remove(
+                "show"
+            );
+
+
+            setTimeout(
+                function () {
+
+                    message.textContent =
+                        text;
+
+                    message.classList.add(
+                        "show"
+                    );
+
+                },
+                150
+            );
+        }
+
+
+        function updateMessages(
+            elapsed
+        ) {
+
+            const interval =
+                4300;
+
+            const newIndex =
+                Math.floor(
+                    elapsed /
+                    interval
+                );
+
+
+            if (
+                newIndex !==
+                messageIndex &&
+                newIndex <
+                messages.length
+            ) {
+
+                messageIndex =
+                    newIndex;
+
+                showMessage(
+                    messages[
+                    messageIndex
+                    ]
+                );
+            }
+        }
+
+
+        /* =========================================================
+           STATIC SCENE
+        ========================================================= */
+
+        function drawStaticScene() {
+
+            drawSky();
+
+            drawStars();
+
+            drawBackground();
+
+            drawGround();
+
+            drawLanterns();
+        }
+
+
+        /* =========================================================
+           ANIMATION
+        ========================================================= */
+
+        function animate(
+            currentTime
+        ) {
+
+            const dt =
+                Math.min(
+                    (currentTime -
+                        lastTime) / 1000,
+                    .05
+                );
+
+            lastTime =
+                currentTime;
+
+
+            const elapsed =
+                currentTime -
+                startTime;
+
+
+            /* Background stays static */
+
+            drawStaticScene();
+
+
+            /* Roses */
+
+            const sortedRoses =
+                [...roses].sort(
+                    (a, b) =>
+                        a.layer -
+                        b.layer
+                );
+
+
+            for (
+                const rose of sortedRoses
+            ) {
+
+                const growthTime =
+                    elapsed -
+                    rose.delay;
+
+
+                let bloom = 0;
+
+
+                if (
+                    growthTime > 0
+                ) {
+
+                    bloom =
+                        easeOut(
+                            clamp(
+                                growthTime /
+                                1800,
+                                0,
+                                1
+                            )
+                        );
+                }
+
+
+                if (
+                    bloom > 0
+                ) {
+
+                    drawRose(
+                        rose,
+                        bloom,
+                        currentTime
+                    );
+                }
+            }
+
+
+            /* Falling petals */
+
+            updatePetals(dt);
+
+            drawPetals();
+
+
+            /* Click effects */
+
+            updateClickEffects(dt);
+
+            drawClickEffects();
+
+
+            /* Messages */
+
+            updateMessages(
+                elapsed
+            );
+
+
+            requestAnimationFrame(
+                animate
+            );
+        }
+
+
+        /* =========================================================
+           BLOOM AGAIN
+        ========================================================= */
+
+        restart.addEventListener(
+            "click",
+            function () {
+
+                startTime =
+                    performance.now();
+
+                lastTime =
+                    performance.now();
+
+                messageIndex = 0;
+
+                message.classList.remove(
+                    "show"
+                );
+
+                makeGarden();
+
+
+                setTimeout(
+                    function () {
+
+                        showMessage(
+                            messages[0]
+                        );
+
+                    },
+                    250
+                );
+            }
+        );
+
+
+        /* =========================================================
+           START
+        ========================================================= */
+
+        resize();
+
+        showMessage(
+            messages[0]
+        );
+
+        requestAnimationFrame(
+            animate
+        );
+
+    </script>
+
+</body>
+
+</html>
